@@ -28,10 +28,18 @@ def iter_patch_paths(patches_dir: Path) -> Generator[Path, None, None]:
     """
     Yield all valid patch image paths from *patches_dir* (non-recursive).
     Only files with a supported extension are yielded.
+    Files whose stem starts with 'overview' (case-insensitive) are skipped —
+    these are whole-slide thumbnail images, not tissue patches.
     """
     for path in sorted(patches_dir.iterdir()):
-        if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS:
-            yield path
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+            continue
+        if path.stem.lower().startswith("overview"):
+            logger.debug("Skipping overview image: %s", path.name)
+            continue
+        yield path
 
 
 def load_patch_image(path: Path) -> Optional[np.ndarray]:
