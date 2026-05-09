@@ -172,8 +172,18 @@ class TITANExtractor:
 
         logger.info("Loading TITAN from %s …", MODELS_TITAN_DIR)
         try:
-            # TITAN exposes a standard HuggingFace AutoModel interface
+            import shutil
             from transformers import AutoModel
+
+            # transformers copies only auto_map-registered .py files to its modules
+            # cache, but conch_tokenizer.py (imported by text_transformer.py) is not
+            # listed. Copy ALL .py files from the local weights dir to the cache so
+            # every relative import resolves correctly.
+            _hf_modules = Path.home() / ".cache" / "huggingface" / "modules" / "transformers_modules" / "titan"
+            _hf_modules.mkdir(parents=True, exist_ok=True)
+            for _py in MODELS_TITAN_DIR.glob("*.py"):
+                shutil.copy2(_py, _hf_modules / _py.name)
+            logger.info("Copied %d .py files → %s", len(list(MODELS_TITAN_DIR.glob("*.py"))), _hf_modules)
 
             self._model = AutoModel.from_pretrained(
                 str(MODELS_TITAN_DIR),
