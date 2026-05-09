@@ -230,9 +230,46 @@ app = FastAPI(
 )
 
 
+async def _self_register() -> None:
+    """
+    Detect this pod's public proxy URL and update Laravel's servers_names row.
+    Runs once at startup. Fails silently so the server still boots if Laravel
+    is unreachable.
+    """
+    pod_id = os.environ.get("RUNPOD_POD_ID", "")
+    laravel_url = os.environ.get("LARAVEL_BASE_URL", "")
+    server_id = os.environ.get("LARAVEL_SERVER_ID", "2")
+
+    if not pod_id:
+        logger.info("RUNPOD_POD_ID not set — skipping self-registration.")
+        return
+    if not laravel_url or not SHARED_SECRET:
+        logger.info("LARAVEL_BASE_URL or RUNPOD_API_KEY not set — skipping self-registration.")
+        return
+
+    public_url = f"https://{pod_id}-8000.proxy.runpod.net"
+    register_endpoint = f"{laravel_url.rstrip('/')}/api/v1/servers/{server_id}/update-url"
+
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                register_endpoint,
+                json={"api_url": public_url},
+                headers={"Authorization": f"Bearer {SHARED_SECRET}"},
+            )
+        if resp.status_code == 200:
+            logger.info("Self-registered api_url=%s on Laravel (server_id=%s)", public_url, server_id)
+        else:
+            logger.warning("Self-registration returned HTTP %d: %s", resp.status_code, resp.text[:200])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Self-registration failed (non-fatal): %s", exc)
+
+
 @app.on_event("startup")
 async def _startup() -> None:
     asyncio.create_task(_worker_loop())
+    asyncio.create_task(_self_register())
     logger.info("Worker loop started. Queue ready.")
 
 
