@@ -195,7 +195,7 @@ def _run_job_sync(job_id: str, req: JobStartRequest) -> None:
         num_workers=NUM_WORKERS,
         gdrive_input_path=req.gdrive_input_path,
         gdrive_output_path=req.gdrive_output_path,
-        api_base_url=req.callback.url.replace("/api/v1/feature-extraction/report", ""),
+        api_base_url=(os.environ.get("API_BASE_URL") or req.callback.url.replace("/api/v1/feature-extraction/report", "")),
         api_key=req.callback.token,
     )
 
@@ -295,7 +295,7 @@ async def start_job(req: JobStartRequest) -> JobStartResponse:
     # Pre-emptively notify Laravel that the job is now processing so the
     # admin UI flips to the right state without waiting for the GPU work.
     api = APIClient(
-        base_url=req.callback.url.replace("/api/v1/feature-extraction/report", ""),
+        base_url=(os.environ.get("API_BASE_URL") or req.callback.url.replace("/api/v1/feature-extraction/report", "")),
         api_key=req.callback.token,
         timeout=API_TIMEOUT,
     )
