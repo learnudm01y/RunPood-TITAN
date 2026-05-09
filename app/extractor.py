@@ -185,28 +185,37 @@ class TITANExtractor:
                 shutil.copy2(_py, _hf_modules / _py.name)
             logger.info("Copied %d .py files → %s", len(list(MODELS_TITAN_DIR.glob("*.py"))), _hf_modules)
 
-            self._model = AutoModel.from_pretrained(
+            # Load the TITAN slide-level model
+            titan = AutoModel.from_pretrained(
                 str(MODELS_TITAN_DIR),
                 trust_remote_code=True,
                 local_files_only=True,
             )
-            self._model.eval()
-            self._model.to(self._device)
+            titan.eval()
+            titan.to(self._device)
 
-            # Probe feature dimension with a dummy forward pass
+            # TITAN is a slide-level model. For patch-level feature extraction
+            # we use the CONCH visual encoder that is bundled inside TITAN.
+            # titan.return_conch() returns (conch_model, eval_transform).
+            conch_model, conch_transform = titan.return_conch()
+            self._model = conch_model.to(self._device).eval()
+            # Override transform with CONCH's own transform (more accurate than
+            # the generic ImageNet one we built in _build_transform).
+            self._transform = conch_transform
+
+            # Probe feature dimension with a dummy forward pass through CONCH
             dummy = torch.zeros(1, 3, self._patch_size_px, self._patch_size_px).to(self._device)
             with torch.no_grad():
                 out = self._model(dummy)
-            # Handle various output shapes
-            if hasattr(out, "last_hidden_state"):
-                feat = out.last_hidden_state[:, 0]
-            elif isinstance(out, torch.Tensor):
+            if isinstance(out, torch.Tensor):
                 feat = out
+            elif hasattr(out, "last_hidden_state"):
+                feat = out.last_hidden_state[:, 0]
             else:
                 feat = out[0]
             self._feature_dim = int(feat.shape[-1])
             logger.info(
-                "TITAN loaded successfully. Feature dim=%d, device=%s",
+                "TITAN+CONCH loaded successfully. Feature dim=%d, device=%s",
                 self._feature_dim,
                 self._device,
             )
