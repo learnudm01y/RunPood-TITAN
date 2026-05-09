@@ -5,6 +5,7 @@ transformers>=4.40.0
 huggingface_hub>=0.22.0
 timm>=0.9.16
 einops>=0.7.0
+einops-exts>=0.0.4
 
 # ─── Data handling ────────────────────────────────────────────────────────────
 h5py>=3.10.0
