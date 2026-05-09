@@ -92,25 +92,19 @@ def download_titan_weights() -> None:
 
 def download_conch_weights() -> None:
     """
-    Download CONCH (visual encoder) weights from Hugging Face into MODELS_CONCH_DIR.
-    Skips the download if weights are already present.
+    CONCH v1.5 is bundled inside the TITAN repo as conch_v1_5_pytorch_model.bin.
+    No separate download is needed — TITAN's return_conch() loads it at runtime.
+    This function is kept for API compatibility but is effectively a no-op.
     """
-    from huggingface_hub import snapshot_download
-
-    sentinel = MODELS_CONCH_DIR / "config.json"
-    if sentinel.exists():
-        logger.info("CONCH weights already present at %s – skipping download.", MODELS_CONCH_DIR)
-        return
-
-    logger.info("Downloading CONCH weights from %s …", CONCH_HF_REPO)
-    MODELS_CONCH_DIR.mkdir(parents=True, exist_ok=True)
-    snapshot_download(
-        repo_id=CONCH_HF_REPO,
-        local_dir=str(MODELS_CONCH_DIR),
-        local_dir_use_symlinks=False,
-        ignore_patterns=["*.ot", "*.msgpack"],
-    )
-    logger.info("CONCH weights downloaded → %s", MODELS_CONCH_DIR)
+    conch_bin = MODELS_TITAN_DIR / "conch_v1_5_pytorch_model.bin"
+    if conch_bin.exists():
+        logger.info("CONCH bundled inside TITAN at %s – no separate download needed.", conch_bin)
+    else:
+        logger.warning(
+            "conch_v1_5_pytorch_model.bin not found in %s. "
+            "Re-download TITAN weights via download_models.sh.",
+            MODELS_TITAN_DIR,
+        )
 
 
 # ─── Transform ────────────────────────────────────────────────────────────────

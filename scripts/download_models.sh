@@ -66,29 +66,13 @@ PYEOF
 fi
 
 # ── CONCH ─────────────────────────────────────────────────────────────────────
-if [ -f "${CONCH_DIR}/config.json" ]; then
-    echo "[CONCH] Weights already present – skipping."
+# CONCH v1.5 is bundled inside the TITAN repo (conch_v1_5_pytorch_model.bin).
+# No separate download needed — TITAN's return_conch() extracts it at runtime.
+if [ -f "${TITAN_DIR}/conch_v1_5_pytorch_model.bin" ]; then
+    echo "[CONCH] Found bundled inside TITAN weights – no separate download needed."
 else
-    echo "[CONCH] Downloading from Hugging Face …"
-    python3 - <<'PYEOF'
-import os, sys
-from huggingface_hub import snapshot_download
-from pathlib import Path
-
-conch_dir = os.environ.get("CONCH_DIR", "/workspace/models/conch")
-conch_repo = os.environ.get("CONCH_HF_REPO", "MahmoodLab/conch")
-
-print(f"  repo_id   : {conch_repo}")
-print(f"  local_dir : {conch_dir}")
-
-snapshot_download(
-    repo_id=conch_repo,
-    local_dir=conch_dir,
-    local_dir_use_symlinks=False,
-    ignore_patterns=["*.ot", "*.msgpack"],
-)
-print("[CONCH] Download complete.")
-PYEOF
+    echo "[CONCH] WARNING: conch_v1_5_pytorch_model.bin not found in TITAN dir."
+    echo "        Re-run TITAN download or check ${TITAN_DIR} contents."
 fi
 
 echo "================================================================"
