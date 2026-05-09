@@ -86,6 +86,7 @@ class APIClient:
                 json=payload,
                 headers=self._headers,
                 timeout=self._timeout,
+                verify=False,
             )
             if response.is_success:
                 logger.info("API report accepted (HTTP %d): %s", response.status_code, url)
