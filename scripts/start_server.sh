@@ -19,9 +19,13 @@
 
 set -euo pipefail
 
+# Determine project directory (the folder containing scripts/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "${SCRIPT_DIR}")"
+
 WORKSPACE="${WORKSPACE_DIR:-/workspace}"
 export WORKSPACE_DIR="${WORKSPACE}"
-export PYTHONPATH="${WORKSPACE}"
+export PYTHONPATH="${PROJECT_DIR}"
 export HF_HOME="${WORKSPACE}/models/cache"
 export HF_HUB_CACHE="${HF_HOME}/hub"
 export TRANSFORMERS_CACHE="${HF_HOME}"
@@ -47,9 +51,9 @@ if [ -f "${WORKSPACE}/rclone.conf" ]; then
 fi
 
 # Pre-warm models so the first job doesn't pay the download cost
-bash "${WORKSPACE}/scripts/download_models.sh" || true
+bash "${PROJECT_DIR}/scripts/download_models.sh" || true
 
-cd "${WORKSPACE}"
+cd "${PROJECT_DIR}"
 
 echo "================================================================"
 echo "  RunPood-histo-TITAN  |  HTTP Server"
