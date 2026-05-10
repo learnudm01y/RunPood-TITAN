@@ -40,6 +40,9 @@ logger = logging.getLogger(__name__)
 os.environ.setdefault("HF_HOME", str(MODELS_CACHE_DIR))
 os.environ.setdefault("TRANSFORMERS_CACHE", str(MODELS_CACHE_DIR))
 os.environ.setdefault("HF_HUB_CACHE", str(MODELS_CACHE_DIR / "hub"))
+# Force offline mode — all weights are local, no HuggingFace network calls needed
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_DATASETS_OFFLINE"] = "1"
 
 
 # ─── Device selection ─────────────────────────────────────────────────────────
