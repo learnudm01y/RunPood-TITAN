@@ -236,18 +236,18 @@ async def _self_register() -> None:
     Runs once at startup. Fails silently so the server still boots if Laravel
     is unreachable.
     """
-    pod_id = os.environ.get("RUNPOD_POD_ID", "")
+    pod_hostname = os.environ.get("RUNPOD_POD_HOSTNAME", "")
     laravel_url = os.environ.get("LARAVEL_BASE_URL", "")
     server_id = os.environ.get("LARAVEL_SERVER_ID", "2")
 
-    if not pod_id:
-        logger.info("RUNPOD_POD_ID not set — skipping self-registration.")
+    if not pod_hostname:
+        logger.info("RUNPOD_POD_HOSTNAME not set — skipping self-registration.")
         return
     if not laravel_url or not SHARED_SECRET:
         logger.info("LARAVEL_BASE_URL or RUNPOD_API_KEY not set — skipping self-registration.")
         return
 
-    public_url = f"https://{pod_id}-8000.proxy.runpod.net"
+    public_url = f"https://{pod_hostname}-8000.proxy.runpod.net"
     register_endpoint = f"{laravel_url.rstrip('/')}/api/v1/servers/{server_id}/update-url"
 
     import httpx

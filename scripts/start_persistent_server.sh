@@ -24,6 +24,10 @@ if [ ! -x "${VENV_PYTHON}" ]; then
     exit 1
 fi
 
+# Fix DNS (RunPod sometimes loses resolv.conf on restart)
+echo "nameserver 8.8.8.8" > /etc/resolv.conf
+echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+
 # Restore environment variables, rclone config, and anything else the pod needs.
 source "${SETUP_SCRIPT}"
 
