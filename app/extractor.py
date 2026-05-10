@@ -183,6 +183,20 @@ class TITANExtractor:
             _hf_modules.mkdir(parents=True, exist_ok=True)
             for _py in MODELS_TITAN_DIR.glob("*.py"):
                 shutil.copy2(_py, _hf_modules / _py.name)
+
+            # Fix conch_tokenizer.py: replace hardcoded HuggingFace repo name
+            # with the local path so it works offline (no internet required).
+            _tokenizer_cache = _hf_modules / "conch_tokenizer.py"
+            if _tokenizer_cache.exists():
+                _content = _tokenizer_cache.read_text()
+                _fixed = _content.replace(
+                    'from_pretrained("MahmoodLab/TITAN")',
+                    f'from_pretrained("{MODELS_TITAN_DIR}")',
+                )
+                if _fixed != _content:
+                    _tokenizer_cache.write_text(_fixed)
+                    logger.info("Patched conch_tokenizer.py to use local path: %s", MODELS_TITAN_DIR)
+
             logger.info("Copied %d .py files → %s", len(list(MODELS_TITAN_DIR.glob("*.py"))), _hf_modules)
 
             # Load the TITAN slide-level model
