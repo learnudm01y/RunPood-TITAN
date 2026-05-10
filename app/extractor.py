@@ -205,6 +205,26 @@ class TITANExtractor:
 
             logger.info("Copied %d .py files → %s", len(list(MODELS_TITAN_DIR.glob("*.py"))), _hf_modules)
 
+            # Monkey-patch hf_hub_download so conch_v1_5.py finds weights
+            # locally. It calls hf_hub_download("MahmoodLab/TITAN",
+            # "conch_v1_5_pytorch_model.bin") which fails in offline mode
+            # even though the file lives at MODELS_TITAN_DIR.
+            import huggingface_hub as _hfh
+            import sys as _sys
+            if not hasattr(_hfh, "_orig_hf_hub_download"):
+                _hfh._orig_hf_hub_download = _hfh.hf_hub_download
+            def _patched_hf_hub_dl(repo_id, filename, *args, **kwargs):
+                _lp = MODELS_TITAN_DIR / filename
+                if _lp.exists():
+                    logger.info("hf_hub_download intercepted → %s", _lp)
+                    return str(_lp)
+                return _hfh._orig_hf_hub_download(repo_id, filename, *args, **kwargs)
+            _hfh.hf_hub_download = _patched_hf_hub_dl
+            # Evict cached titan modules so fresh import picks up the patch
+            for _k in list(_sys.modules.keys()):
+                if "transformers_modules" in _k and "titan" in _k.lower():
+                    del _sys.modules[_k]
+
             # Load the TITAN slide-level model
             titan = AutoModel.from_pretrained(
                 str(MODELS_TITAN_DIR),
