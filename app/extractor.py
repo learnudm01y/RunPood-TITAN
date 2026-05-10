@@ -191,7 +191,10 @@ class TITANExtractor:
                 _content = _tokenizer_cache.read_text()
                 _fixed = _content.replace(
                     'from_pretrained("MahmoodLab/TITAN")',
+                    f'from_pretrained("{MODELS_TITAN_DIR}", local_files_only=True)',
+                ).replace(
                     f'from_pretrained("{MODELS_TITAN_DIR}")',
+                    f'from_pretrained("{MODELS_TITAN_DIR}", local_files_only=True)',
                 )
                 if _fixed != _content:
                     _tokenizer_cache.write_text(_fixed)
