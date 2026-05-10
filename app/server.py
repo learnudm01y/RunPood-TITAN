@@ -321,6 +321,61 @@ def get_job(job_id: str) -> dict[str, Any]:
     return {"success": True, "job": job}
 
 
+# ─── Credential update endpoint ───────────────────────────────────────────────
+
+class CredentialsUpdateRequest(BaseModel):
+    rclone_refresh_token: Optional[str] = None
+    hf_token: Optional[str] = None
+
+
+@app.post("/admin/update-credentials", dependencies=[Depends(_verify_token)])
+def update_credentials(req: CredentialsUpdateRequest) -> dict[str, Any]:
+    """
+    Laravel calls this to push updated rclone / HF credentials.
+    Updates rclone.conf and setup_env.sh in-place without restarting.
+    """
+    import re
+    updated: list[str] = []
+    workspace = os.environ.get("WORKSPACE_DIR", "/workspace")
+    setup_env_path = f"{workspace}/setup_env.sh"
+
+    if req.rclone_refresh_token:
+        rclone_conf_path = os.path.expanduser("~/.config/rclone/rclone.conf")
+        os.makedirs(os.path.dirname(rclone_conf_path), exist_ok=True)
+        token_json = (
+            '{"access_token":"","token_type":"Bearer",'
+            f'"refresh_token":"{req.rclone_refresh_token}",'
+            '"expiry":"2020-01-01T00:00:00Z"}'
+        )
+        with open(rclone_conf_path, "w") as fh:
+            fh.write(f"[gdrive]\ntype = drive\nscope = drive\ntoken = {token_json}\nteam_drive =\n")
+        if os.path.exists(setup_env_path):
+            content = open(setup_env_path).read()
+            content = re.sub(
+                r'token = \{"access_token":.*?"expiry":"[^"]*"\}',
+                f'token = {token_json}',
+                content,
+            )
+            open(setup_env_path, "w").write(content)
+        updated.append("rclone_refresh_token")
+        logger.info("Credentials updated: rclone_refresh_token")
+
+    if req.hf_token:
+        os.environ["HF_TOKEN"] = req.hf_token
+        if os.path.exists(setup_env_path):
+            content = open(setup_env_path).read()
+            content = re.sub(
+                r'export HF_TOKEN="[^"]*"',
+                f'export HF_TOKEN="{req.hf_token}"',
+                content,
+            )
+            open(setup_env_path, "w").write(content)
+        updated.append("hf_token")
+        logger.info("Credentials updated: hf_token")
+
+    return {"success": True, "updated": updated}
+
+
 # ─── CLI entry-point (for local dev) ──────────────────────────────────────────
 
 def _main() -> None:
