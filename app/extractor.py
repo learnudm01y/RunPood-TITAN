@@ -182,7 +182,10 @@ class TITANExtractor:
             # cache, but conch_tokenizer.py (imported by text_transformer.py) is not
             # listed. Copy ALL .py files from the local weights dir to the cache so
             # every relative import resolves correctly.
-            _hf_modules = Path.home() / ".cache" / "huggingface" / "modules" / "transformers_modules" / "titan"
+            # IMPORTANT: must use MODELS_CACHE_DIR (= HF_HOME) not Path.home()/.cache,
+            # otherwise the files land in the wrong directory and every job after the
+            # first fails with "No module named transformers_modules.titan.conch_tokenizer".
+            _hf_modules = MODELS_CACHE_DIR / "modules" / "transformers_modules" / "titan"
             _hf_modules.mkdir(parents=True, exist_ok=True)
             for _py in MODELS_TITAN_DIR.glob("*.py"):
                 shutil.copy2(_py, _hf_modules / _py.name)
