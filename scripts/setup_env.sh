@@ -27,6 +27,7 @@ export PORT="${PORT:-8001}"
 # ─── Laravel connectivity ─────────────────────────────────────────────────────
 export API_BASE_URL="${API_BASE_URL:-https://ai.histopathology.cloud}"
 export LARAVEL_BASE_URL="${API_BASE_URL}"   # alias used by server.py self-registration
+export LARAVEL_SERVER_ID="${LARAVEL_SERVER_ID:-3}"  # TITAN = server_id=3 in servers_names
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 # Set API_KEY as RunPod template env var (servers_names.api_key for this server)
