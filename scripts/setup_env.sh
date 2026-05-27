@@ -21,6 +21,7 @@ export TRANSFORMERS_CACHE="${HF_HOME}"
 export PYTHONPATH="/workspace/RunPood-histo-TITAN"
 
 # ─── Server port (TITAN runs on 8001 when Virchow2 is on 8000) ───────────────
+# Note: start_both.sh sets PORT=8001 before sourcing this file.
 export PORT="${PORT:-8001}"
 
 # ─── Laravel connectivity ─────────────────────────────────────────────────────
