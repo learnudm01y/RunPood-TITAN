@@ -360,3 +360,28 @@ class TITANExtractor:
             features = np.empty((0, self.feature_dim), dtype=np.float32)
 
         return features, all_names, failed_names
+
+
+# ─── Module-level singleton ────────────────────────────────────────────────────
+import threading as _threading
+
+_SINGLETON_EXTRACTOR: Optional[TITANExtractor] = None
+_SINGLETON_LOCK = _threading.Lock()
+
+
+def get_extractor(patch_size_px: int = 256, batch_size: int = 32) -> TITANExtractor:
+    """
+    Return the shared TITANExtractor instance, loading the model on first call.
+    Thread-safe. Subsequent calls return the already-loaded model instantly,
+    eliminating the 33-second per-job reload and preventing module-cache eviction
+    issues with conch_tokenizer.
+    """
+    global _SINGLETON_EXTRACTOR
+    if _SINGLETON_EXTRACTOR is not None:
+        return _SINGLETON_EXTRACTOR
+    with _SINGLETON_LOCK:
+        if _SINGLETON_EXTRACTOR is None:
+            ext = TITANExtractor(patch_size_px=patch_size_px, batch_size=batch_size)
+            ext.load()
+            _SINGLETON_EXTRACTOR = ext
+    return _SINGLETON_EXTRACTOR

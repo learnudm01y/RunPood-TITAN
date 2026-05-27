@@ -67,7 +67,7 @@ from app.config import (
     RCLONE_REMOTE,
     JobConfig,
 )
-from app.extractor import TITANExtractor, download_conch_weights, download_titan_weights
+from app.extractor import TITANExtractor, download_conch_weights, download_titan_weights, get_extractor
 from app.io_utils import (
     FeatureWriter,
     iter_patch_paths,
@@ -284,11 +284,13 @@ def run(cfg: JobConfig, args: argparse.Namespace) -> int:
         logger.info("DRY RUN – skipping actual extraction. Pipeline test passed.")
         return 0
 
-    # ── 6. Load TITAN ─────────────────────────────────────────────────────────
-    logger.info("Stage 5: Loading TITAN …")
-    extractor = TITANExtractor(patch_size_px=cfg.patch_size_px, batch_size=cfg.batch_size)
+    # ── 6. Load TITAN (singleton – loaded once at startup, reused across all jobs) ────
+    logger.info("Stage 5: Loading TITAN (singleton) …")
     try:
-        extractor.load()
+        extractor = get_extractor(
+            patch_size_px=cfg.patch_size_px,
+            batch_size=cfg.batch_size,
+        )
     except Exception as exc:
         msg = f"TITAN load error: {exc}"
         logger.error("%s\n%s", msg, traceback.format_exc())

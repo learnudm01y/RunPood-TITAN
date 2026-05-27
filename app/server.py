@@ -243,8 +243,10 @@ async def _self_register() -> None:
     """
     pod_hostname = os.environ.get("RUNPOD_POD_HOSTNAME", "")
     laravel_url = os.environ.get("LARAVEL_BASE_URL", "")
-    server_id = os.environ.get("LARAVEL_SERVER_ID", "2")
-    server_port = os.environ.get("PORT", "8000")
+    # Default is "3" (TITAN's own server_id). Override via LARAVEL_SERVER_ID env var.
+    server_id = os.environ.get("LARAVEL_SERVER_ID", "3")
+    # Default is "8001" (TITAN's own port). Override via PORT env var.
+    server_port = os.environ.get("PORT", "8001")
 
     if not pod_hostname:
         logger.info("RUNPOD_POD_HOSTNAME not set — skipping self-registration.")
@@ -272,10 +274,25 @@ async def _self_register() -> None:
         logger.warning("Self-registration failed (non-fatal): %s", exc)
 
 
+async def _preload_model() -> None:
+    """
+    Load TITAN model once at server startup so the first job doesn't incur the
+    33-second load delay and module-cache setup runs in a clean context.
+    """
+    try:
+        from app.extractor import get_extractor
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, get_extractor)
+        logger.info("TITAN model preloaded successfully at startup.")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Model preload failed (non-fatal, will retry on first job): %s", exc)
+
+
 @app.on_event("startup")
 async def _startup() -> None:
     asyncio.create_task(_worker_loop())
     asyncio.create_task(_self_register())
+    asyncio.create_task(_preload_model())
     logger.info("Worker loop started. Queue ready.")
 
 
