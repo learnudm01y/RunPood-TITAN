@@ -176,17 +176,35 @@ class TITANExtractor:
         logger.info("Loading TITAN from %s …", MODELS_TITAN_DIR)
         try:
             import shutil
-            from transformers import AutoModel
+            import sys as _sys
+            from pathlib import Path as _Path
 
-            # transformers copies only auto_map-registered .py files to its modules
-            # cache, but conch_tokenizer.py (imported by text_transformer.py) is not
-            # listed. Copy ALL .py files from the local weights dir to the cache so
-            # every relative import resolves correctly.
-            # IMPORTANT: must use MODELS_CACHE_DIR (= HF_HOME) not Path.home()/.cache,
-            # otherwise the files land in the wrong directory and every job after the
-            # first fails with "No module named transformers_modules.titan.conch_tokenizer".
-            _hf_modules = MODELS_CACHE_DIR / "modules" / "transformers_modules" / "titan"
+            # Import AutoModel first so that transformers computes HF_MODULES_CACHE
+            # from the current HF_HOME env-var before we copy any files.
+            # (If transformers is imported before HF_HOME is set, HF_MODULES_CACHE
+            # defaults to /root/.cache/huggingface/modules — a different location
+            # from MODELS_CACHE_DIR/modules — and our copies would land in the
+            # wrong directory, leaving conch_tokenizer.py missing.)
+            from transformers import AutoModel
+            from transformers.dynamic_module_utils import (
+                HF_MODULES_CACHE as _HF_MODULES_CACHE,
+                init_hf_modules as _init_hf_modules,
+            )
+
+            # Ensure the HF modules directory exists and is on sys.path.
+            _init_hf_modules()
+
+            # transformers' get_cached_module_file copies only the *direct*
+            # relative imports of modeling_titan.py to HF_MODULES_CACHE.
+            # conch_tokenizer.py is only imported by text_transformer.py (indirect),
+            # so transformers never copies it — causing every load to fail with
+            # "No module named 'transformers_modules.titan.conch_tokenizer'".
+            # Fix: copy ALL .py files ourselves to the same HF_MODULES_CACHE that
+            # transformers will use for the import.
+            _hf_modules = _Path(_HF_MODULES_CACHE) / "transformers_modules" / "titan"
             _hf_modules.mkdir(parents=True, exist_ok=True)
+            # Ensure __init__.py exists so the directory is a proper Python package.
+            (_hf_modules / "__init__.py").touch(exist_ok=True)
             for _py in MODELS_TITAN_DIR.glob("*.py"):
                 shutil.copy2(_py, _hf_modules / _py.name)
 
@@ -206,14 +224,18 @@ class TITANExtractor:
                     _tokenizer_cache.write_text(_fixed)
                     logger.info("Patched conch_tokenizer.py to use local path: %s", MODELS_TITAN_DIR)
 
-            logger.info("Copied %d .py files → %s", len(list(MODELS_TITAN_DIR.glob("*.py"))), _hf_modules)
+            logger.info(
+                "Copied %d .py files → %s (HF_MODULES_CACHE=%s)",
+                len(list(MODELS_TITAN_DIR.glob("*.py"))),
+                _hf_modules,
+                _HF_MODULES_CACHE,
+            )
 
             # Monkey-patch hf_hub_download so conch_v1_5.py finds weights
             # locally. It calls hf_hub_download("MahmoodLab/TITAN",
             # "conch_v1_5_pytorch_model.bin") which fails in offline mode
             # even though the file lives at MODELS_TITAN_DIR.
             import huggingface_hub as _hfh
-            import sys as _sys
             if not hasattr(_hfh, "_orig_hf_hub_download"):
                 _hfh._orig_hf_hub_download = _hfh.hf_hub_download
             def _patched_hf_hub_dl(repo_id, filename, *args, **kwargs):
@@ -223,10 +245,11 @@ class TITANExtractor:
                     return str(_lp)
                 return _hfh._orig_hf_hub_download(repo_id, filename, *args, **kwargs)
             _hfh.hf_hub_download = _patched_hf_hub_dl
-            # Evict cached titan modules so fresh import picks up the patch
-            for _k in list(_sys.modules.keys()):
-                if "transformers_modules" in _k and "titan" in _k.lower():
-                    del _sys.modules[_k]
+
+            # Invalidate the Python import cache so the newly-copied .py files
+            # (including conch_tokenizer.py) are visible to the importer.
+            import importlib as _importlib
+            _importlib.invalidate_caches()
 
             # Load the TITAN slide-level model
             titan = AutoModel.from_pretrained(
